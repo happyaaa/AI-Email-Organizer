@@ -33,8 +33,8 @@ pip install -r requirements.txt
    - 在 `.env` 文件中填入以下信息：
      ```
      APPLICATION_ID=
-  AZURE_LANGUAGE_KEY=
-  AZURE_LANGUAGE_ENDPOINT=
+     AZURE_LANGUAGE_KEY=
+     AZURE_LANGUAGE_ENDPOINT=
      ```
 
 ## 运行项目
