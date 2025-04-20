@@ -61,8 +61,12 @@ export default function AuthenticationPage() {
               Sign into your favorite email provider
             </p>
           </div>
-          <Button>Sign in with Google</Button>
-          <Button>Sign in with Outlook</Button>
+          <Link className="w-full" href="/mail">
+            <Button className="w-full">Sign in with Google</Button>
+          </Link>
+          <Link className="w-full" href="/mail">
+            <Button className="w-full">Sign in with Outlook</Button>
+          </Link>
           <p className="px-8 text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
             <Link
