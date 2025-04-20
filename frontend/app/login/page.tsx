@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
-import { UserAuthForm } from "@/components/user-auth-form";
+import { Button, buttonVariants } from "@/components/ui/button";
+// import { UserAuthForm } from "@/components/user-auth-form";
 import { ArrowLeft } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -58,10 +58,11 @@ export default function AuthenticationPage() {
               Welcome back
             </h1>
             <p className="text-sm text-muted-foreground">
-              Enter your credentials to sign in to your account
+              Sign into your favorite email provider
             </p>
           </div>
-          <UserAuthForm />
+          <Button>Sign in with Google</Button>
+          <Button>Sign in with Outlook</Button>
           <p className="px-8 text-center text-sm text-muted-foreground">
             Don't have an account?{" "}
             <Link

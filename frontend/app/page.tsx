@@ -12,14 +12,15 @@ import { ArrowRight, Mail, Sparkles, Zap } from "lucide-react";
 export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen">
+      
       {/* Hero Section */}
       <section className="flex-1 w-full flex items-center justify-center py-12 md:py-24 lg:py-32 xl:py-48">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center justify-center space-y-4 text-center">
             <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none">
+              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none">
                 Transform Your Email Experience with AI
-              </h1>
+              </h2>
               <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl dark:text-gray-400">
                 Smart email organization, intelligent prioritization, and
                 AI-powered responses. Take control of your inbox like never
