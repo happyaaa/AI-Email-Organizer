@@ -3,7 +3,6 @@ import Image from "next/image"
 
 import { Mail } from "@/components/ui/mail"
 import { accounts, mails } from "@/components/data"
-
 export default async function MailPage() {
   const cookiesStore = await cookies()
   const layout = cookiesStore.get("react-resizable-panels:layout:mail")
@@ -11,7 +10,7 @@ export default async function MailPage() {
 
   const defaultLayout = layout ? JSON.parse(layout.value) : undefined
   const defaultCollapsed = collapsed ? JSON.parse(collapsed.value) : undefined
-
+  
   return (
     <>
       <div className="md:hidden">
@@ -33,7 +32,6 @@ export default async function MailPage() {
       <div className="hidden flex-col md:flex">
         <Mail
           accounts={accounts}
-          mails={mails}
           defaultLayout={defaultLayout}
           defaultCollapsed={defaultCollapsed}
           navCollapsedSize={4}

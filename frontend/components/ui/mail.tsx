@@ -31,6 +31,8 @@ import { MailList } from "@/components/ui/mail-list";
 import { Nav } from "@/components/ui/nav";
 import { type Mail } from "@/components/data";
 import { useMail } from "@/components/use-mail";
+import { useSearchParams } from "next/navigation";
+import { config } from "@/config";
 
 interface MailProps {
   accounts: {
@@ -38,7 +40,6 @@ interface MailProps {
     email: string;
     icon: React.ReactNode;
   }[];
-  mails: Mail[];
   defaultLayout: number[] | undefined;
   defaultCollapsed?: boolean;
   navCollapsedSize: number;
@@ -46,14 +47,58 @@ interface MailProps {
 
 export function Mail({
   accounts,
-  mails,
   defaultLayout = [20, 32, 48],
   defaultCollapsed = false,
   navCollapsedSize,
 }: MailProps) {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
   const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
   const [mail] = useMail();
+  const [loading, setLoading] = React.useState(true);
+  const [emails, setEmails] = React.useState<any[]>([]);
 
+  function mapOutlookEmail(outlookEmail: any) {
+    return {
+      id: outlookEmail.id,
+      name: outlookEmail.from?.emailAddress?.name ?? "Unknown Sender",
+      email: outlookEmail.from?.emailAddress?.address ?? "",
+      subject: outlookEmail.subject ?? "(No Subject)",
+      text: outlookEmail.bodyPreview ?? "", // You can also use outlookEmail.body.content for full HTML
+      date: outlookEmail.receivedDateTime,
+      read: outlookEmail.isRead ?? false,
+      labels: [], // Graph API does not include labels by default. You can use categories or custom logic.
+    }
+  }
+
+  React.useEffect(() => {
+    const fetchEmails = async () => {
+      if (!token) return;
+      try {
+        const res = await fetch(
+          `${config.api.graphUrl}/me/messages`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const data = await res.json();
+        console.log(data);
+        setEmails(data.value.map(mapOutlookEmail));
+      } catch (error) {
+        console.error("Failed to fetch emails", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchEmails();
+  }, [token]);
+  if (loading) return <div>Loading...</div>;
+  if (!emails.length) return <div>No emails found.</div>;
   return (
     <TooltipProvider delayDuration={0}>
       <ResizablePanelGroup
@@ -205,17 +250,17 @@ export function Mail({
               </form>
             </div>
             <TabsContent value="all" className="m-0">
-              <MailList items={mails} />
+              <MailList items={emails} />
             </TabsContent>
             <TabsContent value="unread" className="m-0">
-              <MailList items={mails.filter((item) => !item.read)} />
+              <MailList items={emails.filter((item) => !item.read)} />
             </TabsContent>
           </Tabs>
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={defaultLayout[2]} minSize={30}>
           <MailDisplay
-            mail={mails.find((item) => item.id === mail.selected) || null}
+            mail={emails.find((item) => item.id === mail.selected) || null}
           />
         </ResizablePanel>
       </ResizablePanelGroup>

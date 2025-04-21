@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from msal import ConfidentialClientApplication
 import os
 from dotenv import load_dotenv
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 CLIENT_ID = os.getenv("APPLICATION_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 AUTHORITY = "https://login.microsoftonline.com/common"
-REDIRECT_URI = "http://localhost:3000/auth/callback"
+REDIRECT_URI = "http://localhost:8000/auth/callback"
 SCOPES = ["Mail.Read", "Mail.ReadWrite", "User.Read"]
 
 msal_app = ConfidentialClientApplication(
@@ -33,15 +33,19 @@ async def login():
 
 
 @router.get("/callback")
-async def auth_callback(code: str):
+async def auth_callback(code: str, response: Response):
     try:
         result = msal_app.acquire_token_by_authorization_code(
             code,
             scopes=SCOPES,
             redirect_uri=REDIRECT_URI
         )
+        # print(result)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
-        return {"access_token": result["access_token"]}
+        # Set token in HTTP-only cookie
+        token = result["access_token"]
+        callback_url = f"http://localhost:3000/mail?token={token}"
+        return RedirectResponse(url=callback_url)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
