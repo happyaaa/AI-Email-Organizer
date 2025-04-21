@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   AlertCircle,
   Archive,
@@ -13,40 +13,35 @@ import {
   ShoppingCart,
   Trash2,
   Users2,
-} from "lucide-react"
+} from "lucide-react";
 
-import { cn } from "@/lib/utils"
-import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "@/components/ui/resizable"
-import { Separator } from "@/components/ui/separator"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { AccountSwitcher } from "@/components/ui/account-switcher"
-import { MailDisplay } from "@/components/ui/mail-display"
-import { MailList } from "@/components/ui/mail-list"
-import { Nav } from "@/components/ui/nav"
-import { type Mail } from "@/components/data"
-import { useMail } from "@/components/use-mail"
+} from "@/components/ui/resizable";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AccountSwitcher } from "@/components/ui/account-switcher";
+import { MailDisplay } from "@/components/ui/mail-display";
+import { MailList } from "@/components/ui/mail-list";
+import { Nav } from "@/components/ui/nav";
+import { type Mail } from "@/components/data";
+import { useMail } from "@/components/use-mail";
 
 interface MailProps {
   accounts: {
-    label: string
-    email: string
-    icon: React.ReactNode
-  }[]
-  mails: Mail[]
-  defaultLayout: number[] | undefined
-  defaultCollapsed?: boolean
-  navCollapsedSize: number
+    label: string;
+    email: string;
+    icon: React.ReactNode;
+  }[];
+  mails: Mail[];
+  defaultLayout: number[] | undefined;
+  defaultCollapsed?: boolean;
+  navCollapsedSize: number;
 }
 
 export function Mail({
@@ -56,8 +51,8 @@ export function Mail({
   defaultCollapsed = false,
   navCollapsedSize,
 }: MailProps) {
-  const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed)
-  const [mail] = useMail()
+  const [isCollapsed, setIsCollapsed] = React.useState(defaultCollapsed);
+  const [mail] = useMail();
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -66,9 +61,9 @@ export function Mail({
         onLayout={(sizes: number[]) => {
           document.cookie = `react-resizable-panels:layout:mail=${JSON.stringify(
             sizes
-          )}`
+          )}`;
         }}
-        className="h-full max-h-[800px] items-stretch"
+        className="h-full max-h-screen items-stretch"
       >
         <ResizablePanel
           defaultSize={defaultLayout[0]}
@@ -77,16 +72,16 @@ export function Mail({
           minSize={15}
           maxSize={20}
           onCollapse={() => {
-            setIsCollapsed(true)
+            setIsCollapsed(true);
             document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
               true
-            )}`
+            )}`;
           }}
           onResize={() => {
-            setIsCollapsed(false)
+            setIsCollapsed(false);
             document.cookie = `react-resizable-panels:collapsed=${JSON.stringify(
               false
-            )}`
+            )}`;
           }}
           className={cn(
             isCollapsed &&
@@ -225,5 +220,5 @@ export function Mail({
         </ResizablePanel>
       </ResizablePanelGroup>
     </TooltipProvider>
-  )
+  );
 }
