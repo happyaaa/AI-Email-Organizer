@@ -1,28 +1,15 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@/components/ui/button";
-// import { UserAuthForm } from "@/components/user-auth-form";
-import { ArrowLeft } from "lucide-react";
+import { LoginButton } from "@/components/auth/login-button";
 
 export const metadata: Metadata = {
-  title: "Authentication",
-  description: "Authentication forms built using the components.",
+  title: "Login | AI Email Organizer",
+  description: "Login to your AI Email Organizer account",
 };
 
-export default function AuthenticationPage() {
+export default function LoginPage() {
   return (
     <div className="container relative min-h-screen flex-col items-center justify-center grid lg:max-w-none lg:grid-cols-2 lg:px-0">
-      <Link
-        href="/"
-        className={cn(
-          buttonVariants({ variant: "ghost" }),
-          "absolute right-4 top-4 md:right-8 md:top-8"
-        )}
-      >
-        <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Home
-      </Link>
       <div className="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-r lg:flex">
         <div className="absolute inset-0 bg-zinc-900" />
         <div className="relative z-20 flex items-center text-lg font-medium">
@@ -58,17 +45,12 @@ export default function AuthenticationPage() {
               Welcome back
             </h1>
             <p className="text-sm text-muted-foreground">
-              Sign into your favorite email provider
+              Sign in to your Microsoft account to continue
             </p>
           </div>
-          <Link className="w-full" href="/mail">
-            <Button className="w-full">Sign in with Google</Button>
-          </Link>
-          <Link className="w-full" href="/mail">
-            <Button className="w-full">Sign in with Outlook</Button>
-          </Link>
+          <LoginButton />
           <p className="px-8 text-center text-sm text-muted-foreground">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link
               href="/register"
               className="underline underline-offset-4 hover:text-primary"
