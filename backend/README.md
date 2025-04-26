@@ -25,19 +25,12 @@ cp .env.example .env
 
 Then edit the `.env` file with your actual configuration values.
 
-4. Set up the database:
-
-```bash
-# Create the database
-createdb ai_email_organizer
-
-# Run migrations (once Alembic is set up)
-alembic upgrade head
-```
 
 ## Running the Server
 
 To run the development server:
+
+create the .env file using params from the google doc
 
 ```bash
 uvicorn main:app --reload
