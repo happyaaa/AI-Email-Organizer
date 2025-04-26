@@ -64,7 +64,8 @@ export function Mail({
       name: outlookEmail.from?.emailAddress?.name ?? "Unknown Sender",
       email: outlookEmail.from?.emailAddress?.address ?? "",
       subject: outlookEmail.subject ?? "(No Subject)",
-      text: outlookEmail.bodyPreview ?? "", // You can also use outlookEmail.body.content for full HTML
+      text: outlookEmail.body.content ?? "", // You can also use outlookEmail.body.content for full HTML
+      preview: outlookEmail.bodyPreview ?? "",
       date: outlookEmail.receivedDateTime,
       read: outlookEmail.isRead ?? false,
       labels: [], // Graph API does not include labels by default. You can use categories or custom logic.
@@ -108,7 +109,7 @@ export function Mail({
             sizes
           )}`;
         }}
-        className="h-full max-h-screen items-stretch"
+        className="h-full items-stretch"
       >
         <ResizablePanel
           defaultSize={defaultLayout[0]}
