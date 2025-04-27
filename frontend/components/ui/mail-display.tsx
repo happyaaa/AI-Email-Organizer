@@ -42,9 +42,10 @@ import { Mail } from "@/components/data";
 
 interface MailDisplayProps {
   mail: Mail | null;
+  onDelete: (id: string) => void;
 }
 
-export function MailDisplay({ mail }: MailDisplayProps) {
+export function MailDisplay({ mail, onDelete }: MailDisplayProps) {
   const today = new Date();
 
   return (
@@ -71,7 +72,7 @@ export function MailDisplay({ mail }: MailDisplayProps) {
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!mail}>
+              <Button variant="ghost" size="icon" disabled={!mail} onClick={() => onDelete(mail?.id ?? "")}>
                 <Trash2 className="h-4 w-4" />
                 <span className="sr-only">Move to trash</span>
               </Button>

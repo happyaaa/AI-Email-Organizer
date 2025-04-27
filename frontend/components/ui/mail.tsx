@@ -25,7 +25,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AccountSwitcher } from "@/components/ui/account-switcher";
+// import { AccountSwitcher } from "@/components/ui/account-switcher";
 import { MailDisplay } from "@/components/ui/mail-display";
 import { MailList } from "@/components/ui/mail-list";
 import { Nav } from "@/components/ui/nav";
@@ -58,6 +58,28 @@ export function Mail({
   const [loading, setLoading] = React.useState(true);
   const [emails, setEmails] = React.useState<any[]>([]);
 
+  async function handleDelete(id: string) {
+    try {
+      const response = await fetch(`${config.api.baseUrl}/api/mail/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete mail: ${response.status}`);
+      }
+
+      setEmails(emails.filter((email) => email.id !== id));
+      mail.selected = null;
+    } catch (error) {
+      console.error(error);
+      alert("Failed to delete mail. Please try again.");
+    }
+  }
+
   function mapOutlookEmail(outlookEmail: any) {
     return {
       id: outlookEmail.id,
@@ -71,7 +93,7 @@ export function Mail({
       labels: [], // Graph API does not include labels by default. You can use categories or custom logic.
     }
   }
-
+  
   React.useEffect(() => {
     async function fetchEmails() {
       try {
@@ -142,7 +164,7 @@ export function Mail({
               isCollapsed ? "h-[52px]" : "px-2"
             )}
           >
-            <AccountSwitcher isCollapsed={isCollapsed} accounts={accounts} />
+            {/* <AccountSwitcher isCollapsed={isCollapsed} accounts={accounts} /> */}
           </div>
           <Separator />
           <Nav
@@ -265,6 +287,7 @@ export function Mail({
         <ResizablePanel defaultSize={defaultLayout[2]} minSize={30}>
           <MailDisplay
             mail={emails.find((item) => item.id === mail.selected) || null}
+            onDelete={handleDelete}
           />
         </ResizablePanel>
       </ResizablePanelGroup>
