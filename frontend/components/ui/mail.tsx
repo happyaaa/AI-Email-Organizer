@@ -29,7 +29,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { MailDisplay } from "@/components/ui/mail-display";
 import { MailList } from "@/components/ui/mail-list";
 import { Nav } from "@/components/ui/nav";
-import { type Mail } from "@/components/data";
+import { type Mail, type Folder } from "@/components/data";
 import { useMail } from "@/components/use-mail";
 import { useSearchParams } from "next/navigation";
 import { config } from "@/config";
@@ -57,7 +57,19 @@ export function Mail({
   const [mail] = useMail();
   const [loading, setLoading] = React.useState(true);
   const [emails, setEmails] = React.useState<any[]>([]);
-
+  const [folders, setFolders] = React.useState<Folder[]>([]);
+  const DEFAULT_FOLDER_NAMES = [
+    "Inbox",
+    "Drafts",
+    "Sent Items",
+    "Deleted Items",
+    "Junk Email",
+    "Archive",
+    "Notes",
+  ];
+  const [selectedFolder, setSelectedFolder] = React.useState<Folder | null>(
+    null
+  );
   async function handleDelete(id: string) {
     try {
       const response = await fetch(`${config.api.baseUrl}/api/mail/${id}`, {
@@ -91,37 +103,132 @@ export function Mail({
       date: outlookEmail.receivedDateTime,
       read: outlookEmail.isRead ?? false,
       labels: [], // Graph API does not include labels by default. You can use categories or custom logic.
-    }
+    };
   }
+
+  function mapOutlookFolder(rawFolder: any): Folder {
+    return {
+      id: rawFolder.id,
+      displayName: rawFolder.displayName ?? "Unknown Folder",
+      parentFolderId: rawFolder.parentFolderId,
+      childFolderCount: rawFolder.childFolderCount ?? 0,
+      unreadItemCount: rawFolder.unreadItemCount ?? 0,
+      totalItemCount: rawFolder.totalItemCount ?? 0,
+      variant: rawFolder.displayName === "Inbox" ? "default" : "ghost",
+    };
+  }
+
+  const handleLinkClick = async (folderId: string) => {
+    try {
+      const clickedFolder = folders.find((f) => f.id === folderId);
+      if (!clickedFolder) return;
   
+      setSelectedFolder(clickedFolder);
+  
+      const response = await fetch(`${config.api.baseUrl}/api/mail?folder_id=${folderId}`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Failed to fetch mails: ${response.status}`);
+      }
+  
+      const emailsData = await response.json();
+      setEmails(emailsData.value.map(mapOutlookEmail));
+    } catch (error) {
+      console.error(error);
+      alert("Failed to load mails. Please try again.");
+    }
+  };
   React.useEffect(() => {
-    async function fetchEmails() {
+    async function fetchFoldersAndEmails() {
       try {
-        const response = await fetch(`${config.api.baseUrl}/api/mail`, {
+        // Fetch folders first
+        const foldersResponse = await fetch(`${config.api.baseUrl}/api/mail/folders`, {
           method: "GET",
           credentials: "include",
           headers: {
             Accept: "application/json",
           },
         });
-    
-        if (!response.ok) {
-          throw new Error(`Failed to fetch mails: ${response.status}`);
+  
+        if (!foldersResponse.ok) {
+          throw new Error(`Failed to fetch folders: ${foldersResponse.status}`);
         }
-    
-        const data = await response.json();
-        console.log(data);
-        setEmails(data.value.map(mapOutlookEmail));
+  
+        const foldersData = await foldersResponse.json();
+        const mappedFolders = foldersData.value.map(mapOutlookFolder);
+        setFolders(mappedFolders);
+  
+        // Find the "Inbox" folder
+        const inboxFolder = mappedFolders.find((folder: Folder) => folder.displayName === "Inbox");
+  
+        if (inboxFolder) {
+          setSelectedFolder(inboxFolder);
+  
+          // Now fetch emails for the selected Inbox folder
+          const emailsResponse = await fetch(`${config.api.baseUrl}/api/mail?folder_id=${inboxFolder.id}`, {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              Accept: "application/json",
+            },
+          });
+  
+          if (!emailsResponse.ok) {
+            throw new Error(`Failed to fetch mails: ${emailsResponse.status}`);
+          }
+  
+          const emailsData = await emailsResponse.json();
+          setEmails(emailsData.value.map(mapOutlookEmail));
+        } else {
+          console.error("Inbox folder not found!");
+        }
       } catch (error) {
         console.error(error);
-        alert("Failed to load mails. Please try again.");
+        alert("Failed to load folders or mails. Please try again.");
       } finally {
         setLoading(false);
       }
     }
-
-    fetchEmails();
+  
+    fetchFoldersAndEmails();
   }, [token]);
+
+  const defaultFolders = folders.filter((folder) =>
+    DEFAULT_FOLDER_NAMES.includes(folder.displayName)
+  );
+
+  defaultFolders.sort(
+    (a, b) =>
+      DEFAULT_FOLDER_NAMES.indexOf(a.displayName) -
+      DEFAULT_FOLDER_NAMES.indexOf(b.displayName)
+  );
+  
+  const customFolders = folders.filter((folder) =>
+    !DEFAULT_FOLDER_NAMES.includes(folder.displayName)
+  );
+
+  const defaultNavLinks = defaultFolders.map((folder) => ({
+  id: folder.id,
+  title: folder.displayName,
+  label: folder.unreadItemCount > 0 ? folder.unreadItemCount.toString() : "",
+  icon: Inbox, // You can improve later based on folder type!
+  variant: (selectedFolder?.id === folder.id ? "default" : "ghost") as "default" | "ghost",
+}));
+
+const customNavLinks = customFolders.map((folder) => ({
+  id: folder.id,
+  title: folder.displayName,
+  label: folder.unreadItemCount > 0 ? folder.unreadItemCount.toString() : "",
+  icon: File, // You can use different icons for custom folders
+  variant: (selectedFolder?.id === folder.id ? "default" : "ghost") as "default" | "ghost",
+}));
+  
   if (loading) return <div>Loading...</div>;
   if (!emails.length) return <div>No emails found.</div>;
   return (
@@ -169,82 +276,20 @@ export function Mail({
           <Separator />
           <Nav
             isCollapsed={isCollapsed}
-            links={[
-              {
-                title: "Inbox",
-                label: "128",
-                icon: Inbox,
-                variant: "default",
-              },
-              {
-                title: "Drafts",
-                label: "9",
-                icon: File,
-                variant: "ghost",
-              },
-              {
-                title: "Sent",
-                label: "",
-                icon: Send,
-                variant: "ghost",
-              },
-              {
-                title: "Junk",
-                label: "23",
-                icon: ArchiveX,
-                variant: "ghost",
-              },
-              {
-                title: "Trash",
-                label: "",
-                icon: Trash2,
-                variant: "ghost",
-              },
-              {
-                title: "Archive",
-                label: "",
-                icon: Archive,
-                variant: "ghost",
-              },
-            ]}
+            links={defaultNavLinks}
+            onLinkClick={handleLinkClick}
           />
           <Separator />
           <Nav
             isCollapsed={isCollapsed}
-            links={[
-              {
-                title: "Social",
-                label: "972",
-                icon: Users2,
-                variant: "ghost",
-              },
-              {
-                title: "Updates",
-                label: "342",
-                icon: AlertCircle,
-                variant: "ghost",
-              },
-              {
-                title: "Forums",
-                label: "128",
-                icon: MessagesSquare,
-                variant: "ghost",
-              },
-              {
-                title: "Shopping",
-                label: "8",
-                icon: ShoppingCart,
-                variant: "ghost",
-              },
-              {
-                title: "Promotions",
-                label: "21",
-                icon: Archive,
-                variant: "ghost",
-              },
-            ]}
+            links={customNavLinks}
+            onLinkClick={handleLinkClick}
           />
-          <iframe src="https://copilotstudio.microsoft.com/environments/Default-44467e6f-462c-4ea2-823f-7800de5434e3/bots/cr29b_testmj_nLm/webchat?__version__=2" frameBorder="0" className="w-full h-[500px]"></iframe>
+          <iframe
+            src="https://copilotstudio.microsoft.com/environments/Default-44467e6f-462c-4ea2-823f-7800de5434e3/bots/cr29b_testmj_nLm/webchat?__version__=2"
+            frameBorder="0"
+            className="w-full h-[500px]"
+          ></iframe>
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={defaultLayout[1]} minSize={30}>

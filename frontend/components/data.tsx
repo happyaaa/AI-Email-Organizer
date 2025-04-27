@@ -10,6 +10,16 @@ export type Mail = {
   labels: string[];
 };
 
+export type Folder = {
+  id: string;
+  displayName: string;
+  parentFolderId?: string;
+  childFolderCount: number;
+  unreadItemCount: number;
+  totalItemCount: number;
+  variant: "default" | "ghost";
+};
+
 
 export const accounts = [
   {
