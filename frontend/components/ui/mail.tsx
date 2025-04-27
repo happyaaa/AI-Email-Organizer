@@ -9,6 +9,7 @@ import {
   Inbox,
   LucideIcon,
   MessagesSquare,
+  Plus,
   Search,
   Send,
   ShoppingCart,
@@ -30,6 +31,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { MailDisplay } from "@/components/ui/mail-display";
 import { MailList } from "@/components/ui/mail-list";
 import { Nav } from "@/components/ui/nav";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { type Mail, type Folder } from "@/components/data";
 import { useMail } from "@/components/use-mail";
 import { useSearchParams } from "next/navigation";
@@ -58,6 +63,9 @@ export function Mail({
   const [mail] = useMail();
   const [loading, setLoading] = React.useState(true);
   const [emails, setEmails] = React.useState<any[]>([]);
+  const [showComposeDialog, setShowComposeDialog] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [filteredEmails, setFilteredEmails] = React.useState<any[]>([]);
   const [folders, setFolders] = React.useState<Folder[]>([]);
   const DEFAULT_FOLDER_NAMES = [
     "Inbox",
@@ -94,31 +102,49 @@ export function Mail({
   }
 
   function mapOutlookEmail(outlookEmail: any) {
+    if (!outlookEmail) return null;
+    
     return {
-      id: outlookEmail.id,
-      name: outlookEmail.from?.emailAddress?.name ?? "Unknown Sender",
-      email: outlookEmail.from?.emailAddress?.address ?? "",
-      subject: outlookEmail.subject ?? "(No Subject)",
-      text: outlookEmail.body.content ?? "", // You can also use outlookEmail.body.content for full HTML
-      preview: outlookEmail.bodyPreview ?? "",
-      date: outlookEmail.receivedDateTime,
-      read: outlookEmail.isRead ?? false,
-      labels: [], // Graph API does not include labels by default. You can use categories or custom logic.
+      id: outlookEmail.id || "",
+      name: outlookEmail.from?.emailAddress?.name || "Unknown Sender",
+      email: outlookEmail.from?.emailAddress?.address || "",
+      subject: outlookEmail.subject || "(No Subject)",
+      text: outlookEmail.body?.content || "", 
+      preview: outlookEmail.bodyPreview || "",
+      date: outlookEmail.receivedDateTime || new Date().toISOString(),
+      read: outlookEmail.isRead || false,
+      labels: outlookEmail.categories || []
     };
   }
 
-  function mapOutlookFolder(rawFolder: any): Folder {
-    return {
-      id: rawFolder.id,
-      displayName: rawFolder.displayName ?? "Unknown Folder",
-      parentFolderId: rawFolder.parentFolderId,
-      childFolderCount: rawFolder.childFolderCount ?? 0,
-      unreadItemCount: rawFolder.unreadItemCount ?? 0,
-      totalItemCount: rawFolder.totalItemCount ?? 0,
-      variant: rawFolder.displayName === "Inbox" ? "default" : "ghost",
-    };
-  }
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    
+    try {
+      const response = await fetch(`${config.api.baseUrl}/api/mail/search`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: query,
+          top: 10
+        })
+      });
 
+      if (!response.ok) {
+        throw new Error(`Search failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Search results:", data);
+      setFilteredEmails(data.value.map(mapOutlookEmail));
+      
+    } catch (error) {
+      console.error("Search failed:", error);
+    }
+  };
   const handleLinkClick = async (folderId: string) => {
     try {
       const clickedFolder = folders.find((f) => f.id === folderId);
@@ -145,60 +171,143 @@ export function Mail({
       alert("Failed to load mails. Please try again.");
     }
   };
+
+  const fetchEmails = async () => {
+    try {
+      const response = await fetch(`${config.api.baseUrl}/api/mail`, {
+        method: "GET",
+        credentials: "include",
+        headers: {
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch mails: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Fetched emails:", data);
+      setEmails(data.value.map(mapOutlookEmail));
+    } catch (error) {
+      console.error("Failed to fetch emails:", error);
+      alert("Failed to load mails. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   React.useEffect(() => {
-    async function fetchFoldersAndEmails() {
+    fetchEmails();
+  }, [token]);
+
+  const ComposeDialog = React.memo(() => {
+    const [to, setTo] = React.useState("");
+    const [subject, setSubject] = React.useState("");
+    const [content, setContent] = React.useState("");
+    const [sending, setSending] = React.useState(false);
+
+    const handleSubmit = async () => {
+      if (!to || !subject || !content) {
+        alert("Please fill in all fields");
+        return;
+      }
+
+      setSending(true);
       try {
-        // Fetch folders first
-        const foldersResponse = await fetch(`${config.api.baseUrl}/api/mail/folders`, {
-          method: "GET",
+        console.log("Sending email with data:", { to, subject, content });
+        
+        const response = await fetch(`${config.api.baseUrl}/api/mail/compose`, {
+          method: "POST",
           credentials: "include",
           headers: {
-            Accept: "application/json",
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({
+            to,
+            subject,
+            content
+          })
         });
-  
-        if (!foldersResponse.ok) {
-          throw new Error(`Failed to fetch folders: ${foldersResponse.status}`);
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.detail || 'Failed to send email');
         }
-  
-        const foldersData = await foldersResponse.json();
-        const mappedFolders = foldersData.value.map(mapOutlookFolder);
-        setFolders(mappedFolders);
-  
-        // Find the "Inbox" folder
-        const inboxFolder = mappedFolders.find((folder: Folder) => folder.displayName === "Inbox");
-  
-        if (inboxFolder) {
-          setSelectedFolder(inboxFolder);
-  
-          // Now fetch emails for the selected Inbox folder
-          const emailsResponse = await fetch(`${config.api.baseUrl}/api/mail?folder_id=${inboxFolder.id}`, {
-            method: "GET",
-            credentials: "include",
-            headers: {
-              Accept: "application/json",
-            },
-          });
-  
-          if (!emailsResponse.ok) {
-            throw new Error(`Failed to fetch mails: ${emailsResponse.status}`);
-          }
-  
-          const emailsData = await emailsResponse.json();
-          setEmails(emailsData.value.map(mapOutlookEmail));
-        } else {
-          console.error("Inbox folder not found!");
+
+        alert("Email sent successfully");
+        setShowComposeDialog(false);
+        setTo("");
+        setSubject("");
+        setContent("");
+        
+    
+        try {
+          await fetchEmails();
+        } catch (error) {
+          console.error("Failed to refresh emails:", error);
         }
       } catch (error) {
-        console.error(error);
-        alert("Failed to load folders or mails. Please try again.");
+        console.error("Failed to send email:", error);
+        alert(error instanceof Error ? error.message : "Failed to send email");
       } finally {
-        setLoading(false);
+        setSending(false);
       }
-    }
-  
-    fetchFoldersAndEmails();
-  }, [token]);
+    };
+
+    return (
+      <Dialog open={showComposeDialog} onOpenChange={setShowComposeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Compose Email</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="to">To</Label>
+              <Input
+                id="to"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                placeholder="recipient@example.com"
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Input
+                id="subject"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="Email subject"
+                required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="content">Content</Label>
+              <Textarea
+                id="content"
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Write your message here..."
+                required
+                className="min-h-[200px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={sending || !to || !subject || !content}
+            >
+              {sending ? "Sending..." : "Send"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  });
+
   
   const folderIconMap: Record<string, LucideIcon> = {
     "Inbox": Inbox,
@@ -324,15 +433,28 @@ const customNavLinks = customFolders.map((folder) => ({
             </div>
             <Separator />
             <div className="bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <form>
+              <form onSubmit={(e) => {
+                e.preventDefault();  
+              }}>
                 <div className="relative">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Search" className="pl-8" />
+                  <Input 
+                    placeholder="Search" 
+                    className="pl-8" 
+                    onChange={(e) => {
+                      handleSearch(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault(); 
+                      }
+                    }}
+                  />
                 </div>
               </form>
             </div>
             <TabsContent value="all" className="m-0">
-              <MailList items={emails} />
+              <MailList items={searchQuery ? filteredEmails : emails} />
             </TabsContent>
             <TabsContent value="unread" className="m-0">
               <MailList items={emails.filter((item) => !item.read)} />
@@ -347,6 +469,7 @@ const customNavLinks = customFolders.map((folder) => ({
           />
         </ResizablePanel>
       </ResizablePanelGroup>
+      <ComposeDialog />
     </TooltipProvider>
   );
 }

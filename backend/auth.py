@@ -13,7 +13,7 @@ CLIENT_ID = os.getenv("APPLICATION_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 AUTHORITY = "https://login.microsoftonline.com/common"
 REDIRECT_URI = "http://localhost:8000/api/auth/callback"
-SCOPES = ["Mail.Read", "Mail.ReadWrite", "User.Read"]
+SCOPES = ["Mail.Read", "Mail.ReadWrite", "Mail.Send", "User.Read"]
 
 msal_app = ConfidentialClientApplication(
     CLIENT_ID,

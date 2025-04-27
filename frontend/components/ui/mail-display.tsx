@@ -39,6 +39,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Mail } from "@/components/data";
+import { useRef } from "react";
+import { config } from "@/config";
+import React from "react";
 
 interface MailDisplayProps {
   mail: Mail | null;
@@ -47,6 +50,37 @@ interface MailDisplayProps {
 
 export function MailDisplay({ mail, onDelete }: MailDisplayProps) {
   const today = new Date();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [showReplyArea, setShowReplyArea] = React.useState(false);
+
+  const handleReply = async (messageId: string, content: string) => {
+    try {
+      const response = await fetch(`${config.api.baseUrl}/api/mail/reply/${messageId}`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message_id: messageId,
+          content: content
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Reply failed: ${errorData.detail || response.status}`);
+      }
+
+      alert("Reply sent successfully");
+      if (textareaRef.current) {
+        textareaRef.current.value = '';
+      }
+    } catch (error) {
+      console.error("Reply failed:", error);
+      alert("Failed to send reply: " + (error as Error).message);
+    }
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -143,7 +177,12 @@ export function MailDisplay({ mail, onDelete }: MailDisplayProps) {
         <div className="ml-auto flex items-center gap-2">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={!mail}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                disabled={!mail}
+                onClick={() => setShowReplyArea(true)}
+              >
                 <Reply className="h-4 w-4" />
                 <span className="sr-only">Reply</span>
               </Button>
@@ -218,32 +257,41 @@ export function MailDisplay({ mail, onDelete }: MailDisplayProps) {
             <iframe className="w-full h-full" srcDoc={mail.text}></iframe>
           </div>
           <Separator className="mt-auto" />
-          <div className="p-4">
-            <form>
-              <div className="grid gap-4">
-                <Textarea
-                  className="p-4"
-                  placeholder={`Reply ${mail.name}...`}
-                />
-                <div className="flex items-center">
-                  <Label
-                    htmlFor="mute"
-                    className="flex items-center gap-2 text-xs font-normal"
-                  >
-                    <Switch id="mute" aria-label="Mute thread" /> Mute this
-                    thread
-                  </Label>
-                  <Button
-                    onClick={(e) => e.preventDefault()}
-                    size="sm"
-                    className="ml-auto"
-                  >
-                    Send
-                  </Button>
+          {showReplyArea && mail && (
+            <div className="p-4">
+              <form>
+                <div className="grid gap-4">
+                  <Textarea
+                    ref={textareaRef}
+                    className="p-4"
+                    placeholder={`Reply ${mail.name}...`}
+                  />
+                  <div className="flex items-center">
+                    <Label
+                      htmlFor="mute"
+                      className="flex items-center gap-2 text-xs font-normal"
+                    >
+                      <Switch id="mute" aria-label="Mute thread" /> Mute this
+                      thread
+                    </Label>
+                    <Button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (mail && textareaRef.current) {
+                          handleReply(mail.id, textareaRef.current.value);
+                          setShowReplyArea(false);
+                        }
+                      }}
+                      size="sm"
+                      className="ml-auto"
+                    >
+                      Send
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </form>
-          </div>
+              </form>
+            </div>
+          )}
         </div>
       ) : (
         <div className="p-8 text-center text-muted-foreground">
