@@ -6,14 +6,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Create a router instead of FastAPI app
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter()
 
 # Microsoft Graph API configuration
 CLIENT_ID = os.getenv("APPLICATION_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 AUTHORITY = "https://login.microsoftonline.com/common"
-REDIRECT_URI = "http://localhost:8000/auth/callback"
+REDIRECT_URI = "http://localhost:8000/api/auth/callback"
 SCOPES = ["Mail.Read", "Mail.ReadWrite", "User.Read"]
 
 msal_app = ConfidentialClientApplication(
@@ -40,12 +39,27 @@ async def auth_callback(code: str, response: Response):
             scopes=SCOPES,
             redirect_uri=REDIRECT_URI
         )
-        # print(result)
+
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
-        # Set token in HTTP-only cookie
+
         token = result["access_token"]
-        callback_url = f"http://localhost:3000/mail?token={token}"
-        return RedirectResponse(url=callback_url)
+
+        # Create redirect response first
+        redirect_response = RedirectResponse(url="http://localhost:3000/mail")
+
+        # Set the token as a cookie (secure, HTTP-only)
+        redirect_response.set_cookie(
+            key="access_token",
+            value=token,
+            httponly=True,
+            secure=False,
+            samesite="lax",
+            max_age=3600,
+            path="/",
+        )
+
+        return redirect_response
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
