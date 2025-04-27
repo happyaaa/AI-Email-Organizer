@@ -18,6 +18,7 @@ interface NavProps {
     label?: string
     icon: LucideIcon
     variant: "default" | "ghost"
+    onClick?: () => void 
   }[]
 }
 
@@ -58,6 +59,10 @@ export function Nav({ links, isCollapsed }: NavProps) {
             <Link
               key={index}
               href="#"
+              onClick={(e) => {
+                e.preventDefault()
+                link.onClick?.()
+              }}
               className={cn(
                 buttonVariants({ variant: link.variant, size: "sm" }),
                 link.variant === "default" &&
