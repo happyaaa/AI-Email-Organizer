@@ -73,28 +73,30 @@ export function Mail({
   }
 
   React.useEffect(() => {
-    const fetchEmails = async () => {
-      if (!token) return;
+    async function fetchEmails() {
       try {
-        const res = await fetch(
-          `${config.api.graphUrl}/me/messages`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        const data = await res.json();
+        const response = await fetch(`${config.api.baseUrl}/api/mail`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+          },
+        });
+    
+        if (!response.ok) {
+          throw new Error(`Failed to fetch mails: ${response.status}`);
+        }
+    
+        const data = await response.json();
         console.log(data);
         setEmails(data.value.map(mapOutlookEmail));
       } catch (error) {
-        console.error("Failed to fetch emails", error);
+        console.error(error);
+        alert("Failed to load mails. Please try again.");
       } finally {
         setLoading(false);
       }
-    };
+    }
 
     fetchEmails();
   }, [token]);

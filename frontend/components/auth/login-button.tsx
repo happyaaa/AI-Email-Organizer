@@ -7,7 +7,7 @@ export function LoginButton() {
   const handleLogin = async () => {
     try {
       // Get the auth URL from our backend
-      const response = await fetch(`${config.api.baseUrl}/auth/login`, {
+      const response = await fetch(`${config.api.baseUrl}/api/auth/login`, {
         method: "GET",
         headers: {
           Accept: "application/json",
