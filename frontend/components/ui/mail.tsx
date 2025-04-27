@@ -7,6 +7,7 @@ import {
   ArchiveX,
   File,
   Inbox,
+  LucideIcon,
   MessagesSquare,
   Search,
   Send,
@@ -198,10 +199,21 @@ export function Mail({
   
     fetchFoldersAndEmails();
   }, [token]);
+  
+  const folderIconMap: Record<string, LucideIcon> = {
+    "Inbox": Inbox,
+    "Drafts": File,
+    "Sent Items": Send,
+    "Deleted Items": Trash2,
+    "Junk Email": ArchiveX,
+    "Archive": Archive,
+    "Notes": File,
+  };
 
   const defaultFolders = folders.filter((folder) =>
     DEFAULT_FOLDER_NAMES.includes(folder.displayName)
   );
+
 
   defaultFolders.sort(
     (a, b) =>
@@ -214,12 +226,12 @@ export function Mail({
   );
 
   const defaultNavLinks = defaultFolders.map((folder) => ({
-  id: folder.id,
-  title: folder.displayName,
-  label: folder.unreadItemCount > 0 ? folder.unreadItemCount.toString() : "",
-  icon: Inbox, // You can improve later based on folder type!
-  variant: (selectedFolder?.id === folder.id ? "default" : "ghost") as "default" | "ghost",
-}));
+    id: folder.id,
+    title: folder.displayName,
+    label: folder.unreadItemCount > 0 ? folder.unreadItemCount.toString() : "",
+    icon: folderIconMap[folder.displayName] || Inbox, // fallback if not found
+    variant: (selectedFolder?.id === folder.id ? "default" : "ghost") as "default" | "ghost",
+  }));
 
 const customNavLinks = customFolders.map((folder) => ({
   id: folder.id,
@@ -230,7 +242,6 @@ const customNavLinks = customFolders.map((folder) => ({
 }));
   
   if (loading) return <div>Loading...</div>;
-  if (!emails.length) return <div>No emails found.</div>;
   return (
     <TooltipProvider delayDuration={0}>
       <ResizablePanelGroup
