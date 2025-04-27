@@ -31,7 +31,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { MailDisplay } from "@/components/ui/mail-display";
 import { MailList } from "@/components/ui/mail-list";
 import { Nav } from "@/components/ui/nav";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -103,23 +109,23 @@ export function Mail({
 
   function mapOutlookEmail(outlookEmail: any) {
     if (!outlookEmail) return null;
-    
+
     return {
       id: outlookEmail.id || "",
       name: outlookEmail.from?.emailAddress?.name || "Unknown Sender",
       email: outlookEmail.from?.emailAddress?.address || "",
       subject: outlookEmail.subject || "(No Subject)",
-      text: outlookEmail.body?.content || "", 
+      text: outlookEmail.body?.content || "",
       preview: outlookEmail.bodyPreview || "",
       date: outlookEmail.receivedDateTime || new Date().toISOString(),
       read: outlookEmail.isRead || false,
-      labels: outlookEmail.categories || []
+      labels: outlookEmail.categories || [],
     };
   }
 
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
-    
+
     try {
       const response = await fetch(`${config.api.baseUrl}/api/mail/search`, {
         method: "POST",
@@ -129,8 +135,8 @@ export function Mail({
         },
         body: JSON.stringify({
           query: query,
-          top: 10
-        })
+          top: 10,
+        }),
       });
 
       if (!response.ok) {
@@ -140,7 +146,6 @@ export function Mail({
       const data = await response.json();
       console.log("Search results:", data);
       setFilteredEmails(data.value.map(mapOutlookEmail));
-      
     } catch (error) {
       console.error("Search failed:", error);
     }
@@ -149,21 +154,24 @@ export function Mail({
     try {
       const clickedFolder = folders.find((f) => f.id === folderId);
       if (!clickedFolder) return;
-  
+
       setSelectedFolder(clickedFolder);
-  
-      const response = await fetch(`${config.api.baseUrl}/api/mail?folder_id=${folderId}`, {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-        },
-      });
-  
+
+      const response = await fetch(
+        `${config.api.baseUrl}/api/mail?folder_id=${folderId}`,
+        {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
+
       if (!response.ok) {
         throw new Error(`Failed to fetch mails: ${response.status}`);
       }
-  
+
       const emailsData = await response.json();
       setEmails(emailsData.value.map(mapOutlookEmail));
     } catch (error) {
@@ -196,9 +204,79 @@ export function Mail({
       setLoading(false);
     }
   };
-
+  
+  function mapOutlookFolder(rawFolder: any): Folder {
+    return {
+      id: rawFolder.id,
+      displayName: rawFolder.displayName ?? "Unknown Folder",
+      parentFolderId: rawFolder.parentFolderId,
+      childFolderCount: rawFolder.childFolderCount ?? 0,
+      unreadItemCount: rawFolder.unreadItemCount ?? 0,
+      totalItemCount: rawFolder.totalItemCount ?? 0,
+      variant: rawFolder.displayName === "Inbox" ? "default" : "ghost",
+    };
+  }
   React.useEffect(() => {
-    fetchEmails();
+    async function fetchFoldersAndEmails() {
+      try {
+        // Fetch folders first
+        const foldersResponse = await fetch(
+          `${config.api.baseUrl}/api/mail/folders`,
+          {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              Accept: "application/json",
+            },
+          }
+        );
+
+        if (!foldersResponse.ok) {
+          throw new Error(`Failed to fetch folders: ${foldersResponse.status}`);
+        }
+
+        const foldersData = await foldersResponse.json();
+        const mappedFolders = foldersData.value.map(mapOutlookFolder);
+        setFolders(mappedFolders);
+
+        // Find the "Inbox" folder
+        const inboxFolder = mappedFolders.find(
+          (folder: Folder) => folder.displayName === "Inbox"
+        );
+
+        if (inboxFolder) {
+          setSelectedFolder(inboxFolder);
+
+          // Now fetch emails for the selected Inbox folder
+          const emailsResponse = await fetch(
+            `${config.api.baseUrl}/api/mail?folder_id=${inboxFolder.id}`,
+            {
+              method: "GET",
+              credentials: "include",
+              headers: {
+                Accept: "application/json",
+              },
+            }
+          );
+
+          if (!emailsResponse.ok) {
+            throw new Error(`Failed to fetch mails: ${emailsResponse.status}`);
+          }
+
+          const emailsData = await emailsResponse.json();
+          setEmails(emailsData.value.map(mapOutlookEmail));
+        } else {
+          console.error("Inbox folder not found!");
+        }
+      } catch (error) {
+        console.error(error);
+        alert("Failed to load folders or mails. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchFoldersAndEmails();
   }, [token]);
 
   const ComposeDialog = React.memo(() => {
@@ -216,7 +294,7 @@ export function Mail({
       setSending(true);
       try {
         console.log("Sending email with data:", { to, subject, content });
-        
+
         const response = await fetch(`${config.api.baseUrl}/api/mail/compose`, {
           method: "POST",
           credentials: "include",
@@ -226,14 +304,14 @@ export function Mail({
           body: JSON.stringify({
             to,
             subject,
-            content
-          })
+            content,
+          }),
         });
 
         const responseData = await response.json();
 
         if (!response.ok) {
-          throw new Error(responseData.detail || 'Failed to send email');
+          throw new Error(responseData.detail || "Failed to send email");
         }
 
         alert("Email sent successfully");
@@ -241,8 +319,7 @@ export function Mail({
         setTo("");
         setSubject("");
         setContent("");
-        
-    
+
         try {
           await fetchEmails();
         } catch (error) {
@@ -296,8 +373,8 @@ export function Mail({
             </div>
           </div>
           <DialogFooter>
-            <Button 
-              onClick={handleSubmit} 
+            <Button
+              onClick={handleSubmit}
               disabled={sending || !to || !subject || !content}
             >
               {sending ? "Sending..." : "Send"}
@@ -308,30 +385,28 @@ export function Mail({
     );
   });
 
-  
   const folderIconMap: Record<string, LucideIcon> = {
-    "Inbox": Inbox,
-    "Drafts": File,
+    Inbox: Inbox,
+    Drafts: File,
     "Sent Items": Send,
     "Deleted Items": Trash2,
     "Junk Email": ArchiveX,
-    "Archive": Archive,
-    "Notes": File,
+    Archive: Archive,
+    Notes: File,
   };
 
   const defaultFolders = folders.filter((folder) =>
     DEFAULT_FOLDER_NAMES.includes(folder.displayName)
   );
 
-
   defaultFolders.sort(
     (a, b) =>
       DEFAULT_FOLDER_NAMES.indexOf(a.displayName) -
       DEFAULT_FOLDER_NAMES.indexOf(b.displayName)
   );
-  
-  const customFolders = folders.filter((folder) =>
-    !DEFAULT_FOLDER_NAMES.includes(folder.displayName)
+
+  const customFolders = folders.filter(
+    (folder) => !DEFAULT_FOLDER_NAMES.includes(folder.displayName)
   );
 
   const defaultNavLinks = defaultFolders.map((folder) => ({
@@ -339,17 +414,21 @@ export function Mail({
     title: folder.displayName,
     label: folder.unreadItemCount > 0 ? folder.unreadItemCount.toString() : "",
     icon: folderIconMap[folder.displayName] || Inbox, // fallback if not found
-    variant: (selectedFolder?.id === folder.id ? "default" : "ghost") as "default" | "ghost",
+    variant: (selectedFolder?.id === folder.id ? "default" : "ghost") as
+      | "default"
+      | "ghost",
   }));
 
-const customNavLinks = customFolders.map((folder) => ({
-  id: folder.id,
-  title: folder.displayName,
-  label: folder.unreadItemCount > 0 ? folder.unreadItemCount.toString() : "",
-  icon: File, // You can use different icons for custom folders
-  variant: (selectedFolder?.id === folder.id ? "default" : "ghost") as "default" | "ghost",
-}));
-  
+  const customNavLinks = customFolders.map((folder) => ({
+    id: folder.id,
+    title: folder.displayName,
+    label: folder.unreadItemCount > 0 ? folder.unreadItemCount.toString() : "",
+    icon: File, // You can use different icons for custom folders
+    variant: (selectedFolder?.id === folder.id ? "default" : "ghost") as
+      | "default"
+      | "ghost",
+  }));
+
   if (loading) return <div>Loading...</div>;
   return (
     <TooltipProvider delayDuration={0}>
@@ -391,7 +470,10 @@ const customNavLinks = customFolders.map((folder) => ({
               isCollapsed ? "h-[52px]" : "px-2"
             )}
           >
-            {/* <AccountSwitcher isCollapsed={isCollapsed} accounts={accounts} /> */}
+
+          <Button className="w-full" onClick={() => setShowComposeDialog(true)}>
+            Compose
+          </Button>
           </div>
           <Separator />
           <Nav
@@ -433,20 +515,22 @@ const customNavLinks = customFolders.map((folder) => ({
             </div>
             <Separator />
             <div className="bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-              <form onSubmit={(e) => {
-                e.preventDefault();  
-              }}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                }}
+              >
                 <div className="relative">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="Search" 
-                    className="pl-8" 
+                  <Input
+                    placeholder="Search"
+                    className="pl-8"
                     onChange={(e) => {
                       handleSearch(e.target.value);
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault(); 
+                      if (e.key === "Enter") {
+                        e.preventDefault();
                       }
                     }}
                   />
