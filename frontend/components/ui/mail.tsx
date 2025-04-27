@@ -222,6 +222,7 @@ export function Mail({
               },
             ]}
           />
+          <iframe src="https://copilotstudio.microsoft.com/environments/Default-44467e6f-462c-4ea2-823f-7800de5434e3/bots/cr29b_testmj_nLm/webchat?__version__=2" frameBorder="0" className="w-full h-[500px]"></iframe>
         </ResizablePanel>
         <ResizableHandle withHandle />
         <ResizablePanel defaultSize={defaultLayout[1]} minSize={30}>
