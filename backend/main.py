@@ -34,7 +34,7 @@ app.include_router(mail_router, prefix="/api/mail")
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to AI Email Organizer API"}
+    return {"message": "Welcome to AI Email Organizer API2"}
 
 if __name__ == "__main__":
     import uvicorn

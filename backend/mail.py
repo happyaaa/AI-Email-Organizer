@@ -54,6 +54,14 @@ async def get_mail(request: Request, folder_id: str = None):
 
     return graph_response.json()
 
+@router.get("/test")
+async def test(request: Request):
+    token = get_token_from_header(request)
+
+    # Return only the first 5 characters of the token
+    return {"token_prefix": token[:5]}
+
+
 
 @router.post("/search")
 async def search_mail(request: Request, search_params: SearchRequest):
