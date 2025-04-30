@@ -1,0 +1,63 @@
+{
+    "swagger": "2.0",
+    "info": {
+      "title": "AI Email Organizer API",
+      "description": "An API for managing Outlook email, including deleting all messages in a folder by name.",
+      "version": "1.0.0"
+    },
+    "host": "ai-email-organizer.onrender.com",
+    "basePath": "/api/mail",
+    "schemes": ["https"],
+    "paths": {
+      "/folder_by_name/{folder_name}/delete_all": {
+        "delete": {
+          "operationId": "deleteAllEmailsInFolderByName",
+          "summary": "Delete all emails in a folder by name",
+          "description": "Deletes all email messages inside the specified Outlook mail folder identified by name.",
+          "parameters": [
+            {
+              "name": "folder_name",
+              "in": "path",
+              "description": "The display name of the mail folder to delete all emails from.",
+              "required": true,
+              "type": "string"
+            }
+          ],
+          "produces": ["application/json"],
+          "responses": {
+            "200": {
+              "description": "Success — All emails deleted",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "example": "Deleted 42 messages from folder 'Archive'"
+                  }
+                }
+              }
+            },
+            "401": {
+              "description": "Unauthorized — if the token is missing or invalid"
+            },
+            "404": {
+              "description": "Folder not found"
+            }
+          },
+          "security": [
+            {
+              "bearerAuth": []
+            }
+          ]
+        }
+      }
+    },
+    "securityDefinitions": {
+      "bearerAuth": {
+        "type": "apiKey",
+        "name": "Authorization",
+        "in": "header"
+      }
+    }
+  }
+  

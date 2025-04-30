@@ -141,7 +141,7 @@ async def reply_mail(request: Request, message_id: str, reply_data: ReplyRequest
     if response.status_code != 202:
         raise HTTPException(status_code=response.status_code, detail="Failed to reply to email")
 
-    return {"message": "Reply sent successfully"}
+    return {"message": "Reply sent successfully"} 
 
 
 @router.post("/compose")
@@ -207,3 +207,49 @@ async def get_mail_folders(request: Request):
         raise HTTPException(status_code=graph_response.status_code, detail="Failed to fetch folders")
 
     return graph_response.json()
+
+
+@router.delete("/folder_by_name/{folder_name}/delete_all")
+async def delete_all_mail_in_folder_by_name(folder_name: str, request: Request):
+    token = await get_token_from_header(request)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+    }
+
+    # Step 1: Find folder ID by folder name
+    folder_list_url = f"{GRAPH_API_ENDPOINT}/me/mailFolders"
+    async with httpx.AsyncClient() as client:
+        folder_response = await client.get(folder_list_url, headers=headers)
+        if folder_response.status_code != 200:
+            raise HTTPException(status_code=folder_response.status_code, detail="Failed to fetch mail folders")
+        folders = folder_response.json().get("value", [])
+        matched_folder = next((f for f in folders if f["displayName"].lower() == folder_name.lower()), None)
+        if not matched_folder:
+            raise HTTPException(status_code=404, detail=f"Folder '{folder_name}' not found")
+
+    folder_id = matched_folder["id"]
+
+    # Step 2: Fetch all messages in the folder
+    list_url = f"{GRAPH_API_ENDPOINT}/me/mailFolders/{folder_id}/messages?$select=id&$top=50"
+    message_ids = []
+
+    async with httpx.AsyncClient() as client:
+        while list_url:
+            resp = await client.get(list_url, headers=headers)
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail="Failed to fetch messages")
+            data = resp.json()
+            message_ids.extend([msg["id"] for msg in data.get("value", [])])
+            list_url = data.get("@odata.nextLink")
+
+    # Step 3: Delete each message
+    async with httpx.AsyncClient() as client:
+        for msg_id in message_ids:
+            delete_url = f"{GRAPH_API_ENDPOINT}/me/messages/{msg_id}"
+            del_resp = await client.delete(delete_url, headers=headers)
+            if del_resp.status_code != 204:
+                print(f"Failed to delete message {msg_id}: {del_resp.status_code}")
+
+    return {"message": f"Deleted {len(message_ids)} messages from folder '{folder_name}'"}
+
