@@ -56,6 +56,10 @@ async def get_mail(request: Request, folder_id: str = None):
 
 @router.get("/test")
 async def test(request: Request):
+    # Print all request headers for debugging
+    print("=== Incoming Headers ===")
+    for key, value in request.headers.items():
+        print(f"{key}: {value}")
     token = get_token_from_header(request)
 
     # Return only the first 5 characters of the token
