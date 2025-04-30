@@ -3,6 +3,9 @@ from typing import Optional
 import httpx
 from pydantic import BaseModel
 from urllib.parse import unquote
+from cachetools import TTLCache
+
+oid_token_cache = TTLCache(maxsize=1000, ttl=3600)
 
 router = APIRouter()
 
@@ -26,16 +29,39 @@ class ReplyRequest(BaseModel):
     content: str
 
 
-def get_token_from_header(request: Request) -> str:
+async def get_token_from_header(request: Request) -> str:
     auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Unauthorized: Missing or invalid Authorization header")
-    return auth_header[len("Bearer "):]
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header[len("Bearer "):]
+
+        # Try to decode token and extract oid
+        try:
+            import jwt
+            # Decode without verifying (you should verify in prod!)
+            payload = jwt.decode(token, options={"verify_signature": False})
+            oid = payload.get("oid")
+            if oid:
+                print("oid from token:", oid, flush=True)
+                oid_token_cache[oid] = token  # Cache for fallback
+        except Exception as e:
+            print("Warning: Failed to decode token:", e)
+
+        return token
+
+    # Fallback for Copilot agent
+    oid = request.headers.get("x-ms-client-object-id")
+    if oid:
+        print("oid from copilot:", oid, flush=True)
+        cached_token = oid_token_cache.get(oid)
+        if cached_token:
+            return cached_token
+
+    raise HTTPException(status_code=401, detail="Unauthorized: Missing or invalid token and no fallback available")
 
 
 @router.get("/")
 async def get_mail(request: Request, folder_id: str = None):
-    token = get_token_from_header(request)
+    token = await get_token_from_header(request)
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
@@ -60,7 +86,7 @@ async def test(request: Request):
     print("=== Incoming Headers ===")
     for key, value in request.headers.items():
         print(f"{key}: {value}")
-    token = get_token_from_header(request)
+    token = await get_token_from_header(request)
 
     # Return only the first 5 characters of the token
     return {"token_prefix": token[:5]}
@@ -69,7 +95,7 @@ async def test(request: Request):
 
 @router.post("/search")
 async def search_mail(request: Request, search_params: SearchRequest):
-    token = get_token_from_header(request)
+    token = await get_token_from_header(request)
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
@@ -100,7 +126,7 @@ async def search_mail(request: Request, search_params: SearchRequest):
 
 @router.post("/reply/{message_id}")
 async def reply_mail(request: Request, message_id: str, reply_data: ReplyRequest):
-    token = get_token_from_header(request)
+    token = await get_token_from_header(request)
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -120,7 +146,7 @@ async def reply_mail(request: Request, message_id: str, reply_data: ReplyRequest
 
 @router.post("/compose")
 async def compose_mail(request: Request, email_data: EmailRequest):
-    token = get_token_from_header(request)
+    token = await get_token_from_header(request)
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -148,7 +174,7 @@ async def compose_mail(request: Request, email_data: EmailRequest):
 
 @router.delete("/{message_id}")
 async def delete_mail(message_id: str, request: Request):
-    token = get_token_from_header(request)
+    token = await get_token_from_header(request)
     decoded_message_id = unquote(message_id)
     headers = {
         "Authorization": f"Bearer {token}",
@@ -168,7 +194,7 @@ async def delete_mail(message_id: str, request: Request):
 
 @router.get("/folders")
 async def get_mail_folders(request: Request):
-    token = get_token_from_header(request)
+    token = await get_token_from_header(request)
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",

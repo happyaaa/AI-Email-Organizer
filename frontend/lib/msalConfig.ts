@@ -3,7 +3,7 @@ import { PublicClientApplication } from "@azure/msal-browser";
 export const getMsalInstance = () => {
   const msalConfig = {
     auth: {
-      clientId: "990298d9-b3c0-4096-b31c-15c19aa209bb",
+      clientId: "9a869dc0-4402-432e-951c-9a8509a68aef",
       authority: "https://login.microsoftonline.com/common",  
       redirectUri: typeof window !== "undefined" ? window.location.origin : "",
       navigateToLoginRequestUrl: true,
