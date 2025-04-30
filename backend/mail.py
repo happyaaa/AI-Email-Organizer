@@ -26,169 +26,118 @@ class ReplyRequest(BaseModel):
     content: str
 
 
+def get_token_from_header(request: Request) -> str:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized: Missing or invalid Authorization header")
+    return auth_header[len("Bearer "):]
+
+
 @router.get("/")
 async def get_mail(request: Request, folder_id: str = None):
-    # print(f"Getting mail for folder_id: {folder_id}", flush=True)
-    token = request.cookies.get("access_token")
-
-    if not token:
-        raise HTTPException(
-            status_code=401, detail="Unauthorized: No token found")
-
+    token = get_token_from_header(request)
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
     }
 
-    # Decide which URL to use
+    url = f"{GRAPH_API_ENDPOINT}/me/messages"
     if folder_id:
         url = f"{GRAPH_API_ENDPOINT}/me/mailFolders/{folder_id}/messages"
-    else:
-        url = f"{GRAPH_API_ENDPOINT}/me/messages"
 
     async with httpx.AsyncClient() as client:
         graph_response = await client.get(url, headers=headers)
-    print(f"Graph response: {graph_response}", flush=True)
+
     if graph_response.status_code != 200:
         raise HTTPException(
             status_code=graph_response.status_code, detail="Failed to fetch mails")
 
-    mails = graph_response.json()
-
-    return mails
+    return graph_response.json()
 
 
 @router.post("/search")
 async def search_mail(request: Request, search_params: SearchRequest):
-    try:
-        token = request.cookies.get("access_token")
-        if not token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
+    token = get_token_from_header(request)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json",
+    }
 
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/json",
-        }
+    endpoint = f"{GRAPH_API_ENDPOINT}/me/messages"
+    params = {
+        "$search": f'"{search_params.query}"',
+        "$top": search_params.top,
+        "$select": "id,subject,from,receivedDateTime,bodyPreview,isRead,body"
+    }
 
-        endpoint = f"{GRAPH_API_ENDPOINT}/me/messages"
-        params = {
-            "$search": f'"{search_params.query}"',
-            "$top": search_params.top,
-            "$select": "id,subject,from,receivedDateTime,bodyPreview,isRead,body"
-        }
+    if search_params.folder_id:
+        endpoint = f"{GRAPH_API_ENDPOINT}/me/mailFolders/{search_params.folder_id}/messages"
 
-        if search_params.folder_id:
-            endpoint = f"{GRAPH_API_ENDPOINT}/me/mailFolders/{search_params.folder_id}/messages"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(endpoint, headers=headers, params=params)
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(endpoint, headers=headers, params=params)
+    if response.status_code != 200:
+        error_body = response.json()
+        raise HTTPException(
+            status_code=response.status_code,
+            detail=f"Graph API error: {error_body.get('error', {}).get('message', 'Unknown error')}"
+        )
 
-            if response.status_code != 200:
-                error_body = await response.json()
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=f"Graph API error: {error_body.get('error', {}).get('message', 'Unknown error')}"
-                )
-
-            return response.json()
-
-    except Exception as e:
-        print(f"Search error: {str(e)}")  # Add logging
-        raise HTTPException(status_code=500, detail=str(e))
+    return response.json()
 
 
 @router.post("/reply/{message_id}")
 async def reply_mail(request: Request, message_id: str, reply_data: ReplyRequest):
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
+    token = get_token_from_header(request)
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
 
     endpoint = f"{GRAPH_API_ENDPOINT}/me/messages/{message_id}/reply"
-    data = {
-        "comment": reply_data.content
-    }
+    data = {"comment": reply_data.content}
 
     async with httpx.AsyncClient() as client:
         response = await client.post(endpoint, headers=headers, json=data)
 
     if response.status_code != 202:
-        raise HTTPException(status_code=response.status_code,
-                            detail="Failed to reply to email")
+        raise HTTPException(status_code=response.status_code, detail="Failed to reply to email")
 
     return {"message": "Reply sent successfully"}
 
 
 @router.post("/compose")
 async def compose_mail(request: Request, email_data: EmailRequest):
-    try:
-        token = request.cookies.get("access_token")
-        if not token:
-            raise HTTPException(status_code=401, detail="Unauthorized")
+    token = get_token_from_header(request)
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
 
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
+    message = {
+        "subject": email_data.subject,
+        "body": {"contentType": "text", "content": email_data.content},
+        "toRecipients": [{"emailAddress": {"address": email_data.to}}]
+    }
 
-        message = {
-            "subject": email_data.subject,
-            "body": {
-                "contentType": "text",
-                "content": email_data.content
-            },
-            "toRecipients": [
-                {
-                    "emailAddress": {
-                        "address": email_data.to
-                    }
-                }
-            ]
-        }
+    async with httpx.AsyncClient() as client:
+        response = await client.post(f"{GRAPH_API_ENDPOINT}/me/sendMail", headers=headers, json={"message": message})
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{GRAPH_API_ENDPOINT}/me/sendMail",
-                headers=headers,
-                json={"message": message}
-            )
+    if response.status_code != 202:
+        try:
+            error_data = response.json()
+            error_message = error_data.get('error', {}).get('message', 'Unknown error')
+        except Exception:
+            error_message = f"Failed with status code: {response.status_code}"
+        raise HTTPException(status_code=response.status_code, detail=error_message)
 
-            if response.status_code != 202:
-                try:
-                    error_data = response.json()  # Remove await here
-                    error_message = error_data.get(
-                        'error', {}).get('message', 'Unknown error')
-                except Exception:
-                    error_message = f"Failed with status code: {response.status_code}"
-
-                print(f"Graph API error: {error_message}")
-                raise HTTPException(
-                    status_code=response.status_code,
-                    detail=error_message
-                )
-
-            return {"message": "Email sent successfully"}
-
-    except Exception as e:
-        print(f"Compose error: {str(e)}")
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"message": "Email sent successfully"}
 
 
 @router.delete("/{message_id}")
 async def delete_mail(message_id: str, request: Request):
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(
-            status_code=401, detail="Unauthorized: No token found")
-
+    token = get_token_from_header(request)
     decoded_message_id = unquote(message_id)
-
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
@@ -198,22 +147,16 @@ async def delete_mail(message_id: str, request: Request):
 
     async with httpx.AsyncClient() as client:
         graph_response = await client.delete(url, headers=headers)
-    print(f"Graph response: {graph_response}", flush=True)
 
     if graph_response.status_code != 204:
-        raise HTTPException(
-            status_code=graph_response.status_code, detail="Failed to delete mail")
+        raise HTTPException(status_code=graph_response.status_code, detail="Failed to delete mail")
 
     return {"message": "Mail deleted successfully"}
 
 
 @router.get("/folders")
 async def get_mail_folders(request: Request):
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(
-            status_code=401, detail="Unauthorized: No token found")
-
+    token = get_token_from_header(request)
     headers = {
         "Authorization": f"Bearer {token}",
         "Accept": "application/json",
@@ -221,10 +164,8 @@ async def get_mail_folders(request: Request):
 
     async with httpx.AsyncClient() as client:
         graph_response = await client.get(f"{GRAPH_API_ENDPOINT}/me/mailFolders?$top=50", headers=headers)
-    print(f"Graph response: {graph_response}", flush=True)
-    if graph_response.status_code != 200:
-        raise HTTPException(
-            status_code=graph_response.status_code, detail="Failed to fetch folders")
 
-    folders = graph_response.json()
-    return folders
+    if graph_response.status_code != 200:
+        raise HTTPException(status_code=graph_response.status_code, detail="Failed to fetch folders")
+
+    return graph_response.json()

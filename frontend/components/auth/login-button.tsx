@@ -1,30 +1,40 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { config } from "@/config";
+import { getMsalInstance, loginRequest } from "@/lib/msalConfig";
 
 export function LoginButton() {
   const handleLogin = async () => {
     try {
-      // Get the auth URL from our backend
-      const response = await fetch(`${config.api.baseUrl}/api/auth/login`, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
+      const msalInstance = getMsalInstance();
+      // 🔑 Ensure MSAL is initialized
+      await msalInstance.initialize();
+
+      // Start login
+      const loginResponse = await msalInstance.loginPopup(loginRequest);
+
+      const account = loginResponse.account;
+      msalInstance.setActiveAccount(account);
+
+      // 🔐 Get access token
+      const tokenResponse = await msalInstance.acquireTokenSilent({
+        ...loginRequest,
+        account,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      const accessToken = tokenResponse.accessToken;
+      console.log("Access token:", accessToken);
 
-      const data = await response.json();
+      // Optional: Send token to backend if needed
+      // await fetch("/api/session", {
+      //   method: "POST",
+      //   headers: { Authorization: `Bearer ${accessToken}` },
+      // });
 
-      // Use window.location.replace instead of href for better security
-      window.location.replace(data.url);
+      window.location.href = "/mail";
     } catch (error) {
-      console.error("Login failed:", error);
-      alert("Failed to start login process. Please try again.");
+      console.error("Login error:", error);
+      alert("Login failed. Please try again.");
     }
   };
 

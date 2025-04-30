@@ -17,7 +17,7 @@ import {
   Users2,
 } from "lucide-react";
 
-import { cn } from "@/lib/utils";
+import { authorizedFetch, cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import {
   ResizableHandle,
@@ -87,12 +87,8 @@ export function Mail({
   );
   async function handleDelete(id: string) {
     try {
-      const response = await fetch(`${config.api.baseUrl}/api/mail/${id}`, {
+      const response = await authorizedFetch(`${config.api.baseUrl}/api/mail/${id}`, {
         method: "DELETE",
-        credentials: "include",
-        headers: {
-          Accept: "application/json",
-        },
       });
 
       if (!response.ok) {
@@ -127,9 +123,8 @@ export function Mail({
     setSearchQuery(query);
 
     try {
-      const response = await fetch(`${config.api.baseUrl}/api/mail/search`, {
+      const response = await authorizedFetch(`${config.api.baseUrl}/api/mail/search`, {
         method: "POST",
-        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
@@ -157,11 +152,10 @@ export function Mail({
 
       setSelectedFolder(clickedFolder);
 
-      const response = await fetch(
+      const response = await authorizedFetch(
         `${config.api.baseUrl}/api/mail?folder_id=${folderId}`,
         {
           method: "GET",
-          credentials: "include",
           headers: {
             Accept: "application/json",
           },
@@ -182,9 +176,8 @@ export function Mail({
 
   const fetchEmails = async () => {
     try {
-      const response = await fetch(`${config.api.baseUrl}/api/mail`, {
+      const response = await authorizedFetch(`${config.api.baseUrl}/api/mail`, {
         method: "GET",
-        credentials: "include",
         headers: {
           Accept: "application/json",
         },
@@ -220,11 +213,10 @@ export function Mail({
     async function fetchFoldersAndEmails() {
       try {
         // Fetch folders first
-        const foldersResponse = await fetch(
+        const foldersResponse = await authorizedFetch(
           `${config.api.baseUrl}/api/mail/folders`,
           {
             method: "GET",
-            credentials: "include",
             headers: {
               Accept: "application/json",
             },
@@ -248,11 +240,10 @@ export function Mail({
           setSelectedFolder(inboxFolder);
 
           // Now fetch emails for the selected Inbox folder
-          const emailsResponse = await fetch(
+          const emailsResponse = await authorizedFetch(
             `${config.api.baseUrl}/api/mail?folder_id=${inboxFolder.id}`,
             {
               method: "GET",
-              credentials: "include",
               headers: {
                 Accept: "application/json",
               },
@@ -295,9 +286,8 @@ export function Mail({
       try {
         console.log("Sending email with data:", { to, subject, content });
 
-        const response = await fetch(`${config.api.baseUrl}/api/mail/compose`, {
+        const response = await authorizedFetch(`${config.api.baseUrl}/api/mail/compose`, {
           method: "POST",
-          credentials: "include",
           headers: {
             "Content-Type": "application/json",
           },

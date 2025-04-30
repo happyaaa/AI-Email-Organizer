@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
-from auth import router as auth_router
 from mail import router as mail_router
 # Load environment variables
 load_dotenv()
@@ -31,7 +30,6 @@ async def http_exception_handler(request, exc):
     )
 
 # Include the auth router
-app.include_router(auth_router, prefix="/api/auth")
 app.include_router(mail_router, prefix="/api/mail")
 
 @app.get("/")
